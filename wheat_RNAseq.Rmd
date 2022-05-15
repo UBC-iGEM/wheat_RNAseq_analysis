@@ -1,0 +1,33 @@
+---
+title: "UBC iGEM 2022 - Bioinformatics Analysis"
+output:
+  html_document:
+    df_print: paged
+---
+### Transcriptome Analysis of Heat and Drought-Stressed Wheat
+<br>
+<u><b>GOAL:</b></u> In order to better understand how abiotic stress conditions affect <i>T. aestivum</i> wheat, RNAseq data of 1-week old wheat seedling leaves subjected to drought stress, heat stress, and their combination before (0h) and after stress (1h or 6h) was analyzed.
+
+
+```{r}
+library(tidyverse)
+library(dplyr)
+data <- read.csv("data/SRP045409_tpm.tsv.gz", sep = "\t")
+```
+
+```{r}
+# index column holds gene IDs
+rownames(data) <- data$gene
+data <- subset(data, select = -c(gene))
+```
+
+```{r}
+# H = heat stress, D = drought stress, HD = combined stress
+# ctrl = 0 hour control, 1h = 1 hour, 6h = 6 hours
+# 2 replicates of each sample type
+
+data <- data %>% rename(HD_6h_1=SRR1542417, HD_6h_2=SRR1542416, HD_1h_1=SRR1542415, HD_1h_2=SRR1542414, H_6h_1=SRR1542413, H_6h_2=SRR1542412, H_1h_1=SRR1542411, H_1h_2=SRR1542410, D_6h_1=SRR1542409, D_6h_2=SRR1542408, D_1h_1=SRR1542407, D_1h_2=SRR1542406, ctrl_1=SRR1542405, ctrl_2=SRR1542404)
+
+data
+```
+
