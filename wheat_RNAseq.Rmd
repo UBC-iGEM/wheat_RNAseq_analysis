@@ -8,18 +8,37 @@ output:
 <br>
 <u><b>GOAL:</b></u> In order to better understand how abiotic stress conditions affect <i>T. aestivum</i> wheat, RNAseq data of 1-week old wheat seedling leaves subjected to drought stress, heat stress, and their combination before (0h) and after stress (1h or 6h) was analyzed.
 
-
-```{r}
+```{r, results='hide', message=FALSE, warning=FALSE}
+# loading all required libraries
 library(tidyverse)
 library(dplyr)
+library(reshape2)
+library(pheatmap)
+library(edgeR)
+library(limma)
+library(rgl)
+library(htmlwidgets)
+
+# normalized count expression matrix
 data <- read.csv("data/SRP045409_tpm.tsv.gz", sep = "\t")
 ```
 
-```{r}
+```{r, results='hide', message=FALSE, warning=FALSE}
 # index column holds gene IDs
 rownames(data) <- data$gene
 data <- subset(data, select = -c(gene))
 ```
+
+<b><u>Labels:</u></b>
+<ul>
+<li>H = heat stress</li>
+<li>D = drought stress</li>
+<li>HD = combined stress</li>
+<li>ctrl = 0 hour control</li>
+<li>1h = 1 hour</li>
+<li>6h = 6 hours</li>
+<li>2 replicates were performed for each sample type</li>
+</ul>
 
 ```{r}
 # H = heat stress, D = drought stress, HD = combined stress
@@ -29,5 +48,134 @@ data <- subset(data, select = -c(gene))
 data <- data %>% rename(HD_6h_1=SRR1542417, HD_6h_2=SRR1542416, HD_1h_1=SRR1542415, HD_1h_2=SRR1542414, H_6h_1=SRR1542413, H_6h_2=SRR1542412, H_1h_1=SRR1542411, H_1h_2=SRR1542410, D_6h_1=SRR1542409, D_6h_2=SRR1542408, D_1h_1=SRR1542407, D_1h_2=SRR1542406, ctrl_1=SRR1542405, ctrl_2=SRR1542404)
 
 data
+```
+```{r, results='hide', message=FALSE, warning=FALSE}
+data_melt <- melt(data)
+```
+```{r}
+colnames(data_melt)[1:2] <- c("sample", "expression")
+
+data_melt <- data_melt %>% 
+  mutate(log_x_1 = log2(expression + 1))
+
+g1 <- data_melt %>% 
+  ggplot(aes(log_x_1, color = sample, fill = sample)) +
+  geom_density(alpha = 0.1) + 
+  theme_minimal() + 
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5)) + 
+  labs(x = "log2(x+1) TPM", y = "Density", title = "Sample Distribution - Density Plot")
+
+g1
+```
+```{r}
+samp_cor <- cor(data)
+head(samp_cor)
+```
+```{r}
+# heatmap w/ dendogram to see correlations b/w samples
+pheatmap(samp_cor)
+```
+```{r, results='hide', message=FALSE, warning=FALSE}
+# remove genes with TPM of 0 in all samples/conditions
+data <- data[rowSums(data[]) > 0, ]
+
+# replot w/ filtered data
+data_melt <- melt(data)
+colnames(data_melt)[1:2] <- c("sample", "expression")
+
+data_melt <- data_melt %>% 
+  mutate(log_x_1 = log2(expression + 1))
+
+g1 <- data_melt %>% 
+  ggplot(aes(log_x_1, color = sample, fill = sample)) +
+  geom_density(alpha = 0.1) + 
+  theme_minimal() + 
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5)) + 
+  labs(x = "log2(x+1) TPM", y = "Density", title = "Sample Distribution - Filtered Density Plot")
+
+g1
+```
+
+```{r}
+# save processed data matrix
+write_delim(data, file = here::here("data", "processed.txt"), delim = "\t")
+
+# to load processed data matrix uncomment the line below
+# data <- read.delim(here::here("data", "processed.txt"), sep = "\t")
+```
+
+### PCA - Unsupervised Clustering Analysis
+```{r}
+# normalize for PCA
+log2 <- log2(data + 1)
+t_log2 <- as.data.frame(t(log2))
+dim(t_log2)
+```
+```{r}
+pca <- prcomp(t_log2, scale = FALSE, center = TRUE)
+summary(pca)
+```
+```{r}
+# dataframe with all PCs, their variance, and cumulative variance of all PCs
+summary <- data.frame(PC = 1:14, var_explained = (pca$sdev)^2 / sum((pca$sdev)^2), 
+                      cumulative = cumsum(pca$sdev^2 / sum(pca$sdev^2))
+                      )
+summary <- summary %>% 
+  mutate(cumulative_perc = cumulative*100)
+
+summary <- summary[1:10, ]
+
+summary %>%
+  ggplot(aes(x = sort(as.factor(PC)), y = var_explained)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(title = "Variance Explained by Each PC")
+```
+```{r}
+scores <- as.data.frame(pca$x)
+scores <- scores[c(1:10)]
+head(scores)
+```
+```{r}
+scores <- scores %>% rownames_to_column(var = "condition")
+scores <- scores %>% mutate(condition_group = case_when(
+    grepl("ctrl", condition, fixed = TRUE) ~ "Control",
+    grepl("H_1", condition, fixed = TRUE) ~ "Heat_1h",
+    grepl("H_6", condition, fixed = TRUE) ~ "Heat_6h",
+    grepl("HD_1", condition, fixed = TRUE) ~ "CombinedStress_1h",
+    grepl("HD_6", condition, fixed = TRUE) ~ "CombinedStress_6h",
+    grepl("D_1", condition, fixed = TRUE) ~ "Drought_1h",
+    grepl("D_6", condition, fixed = TRUE) ~ "Drought_6h"
+  ))
+# 2D PCA plot
+scores %>% 
+  ggplot(aes(x = PC1, y = PC2, colour=condition_group)) +
+  geom_point(size = 3) +
+  labs( x = "Principle Component 1", y = "Principle Component 2", title = "PC1 vs PC2") +
+  theme_minimal() + theme(plot.title = element_text(hjust = 0.5), legend.title=element_blank()) + scale_colour_manual(values = c("red", "orange", "light green", "light blue", "blue", "purple", "hot pink"))
+```
+```{r}
+# 3D PCA plot
+scores <- scores %>% mutate(color_by = case_when(
+    condition_group == "Control" ~ "light green",
+    condition_group == "Heat_1h" ~ "purple",
+    condition_group == "Heat_6h" ~ "hot pink",
+    condition_group == "CombinedStress_1h" ~ "red",
+    condition_group == "CombinedStress_6h" ~ "orange",
+    condition_group == "Drought_1h" ~ "light blue",
+    condition_group == "Drought_6h" ~ "blue"
+  ))
+
+plot3d( 
+  x=scores$PC1, y=scores$PC2, z=scores$PC3,
+  size = 10, xlab="PC1", ylab="PC2", zlab="PC3", col=scores$color_by)
+
+legend3d("topright", legend=paste(unique(scores$condition_group)), pch = 16, col = unique(scores$color_by), cex=0.7, inset=c(0))
+```
+<img src="3D_PCA.png" width=60% height=50%>
+
+### Differential Expression Analysis
+```{r}
+# TODO
 ```
 
