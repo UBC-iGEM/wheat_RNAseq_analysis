@@ -176,6 +176,73 @@ legend3d("topright", legend=paste(unique(scores$condition_group)), pch = 16, col
 
 ### Differential Expression Analysis
 ```{r}
-# TODO
+# raw count expression matrix
+raw_data <- read.csv("data/SRP045409_count.tsv.gz", sep = "\t")
+
+# index column holds gene IDs
+rownames(raw_data) <- raw_data$gene
+raw_data <- subset(raw_data, select = -c(gene))
+
+# round counts to nearest integer
+rounded_data <- round(raw_data)
+
+# remove genes with TPM of 0 in all samples/conditions
+rounded_data <- rounded_data[rowSums(rounded_data[]) > 0, ]
+
+rounded_data <- rounded_data %>% rename(HD_6h_1=SRR1542417, HD_6h_2=SRR1542416, HD_1h_1=SRR1542415, HD_1h_2=SRR1542414, H_6h_1=SRR1542413, H_6h_2=SRR1542412, H_1h_1=SRR1542411, H_1h_2=SRR1542410, D_6h_1=SRR1542409, D_6h_2=SRR1542408, D_1h_1=SRR1542407, D_1h_2=SRR1542406, ctrl_1=SRR1542405, ctrl_2=SRR1542404)
+```
+
+```{r}
+d <- DGEList(counts=rounded_data, 
+             group=factor(
+               c("HD_6h", "HD_6h", "HD_1h", "HD_1h", "H_6h", "H_6h", "H_1h", "H_1h", "D_6h", "D_6h", "D_1h", "D_1h", "ctrl", "ctrl")))
+d
+```
+```{r}
+# only keep genes that have a cpm of >= 100 for at least two samples
+# keep <- rowSums(cpm(d)> 100) >= 2
+# d <- d[keep, ]
+# dim(d)
+```
+```{r}
+d <- calcNormFactors(d)
+d
+```
+```{r}
+plotMDS(d, method="bcv", col=as.numeric(d$samples$group))
+```
+```{r}
+d1 <- estimateCommonDisp(d, verbose=T)
+names(d1)
+d1 <- estimateTagwiseDisp(d1)
+names(d1)
+plotBCV(d1)
+```
+```{r}
+design.mat <- model.matrix(~ 0 + d$samples$group)
+colnames(design.mat) <- levels(d$samples$group)
+d2 <- estimateGLMCommonDisp(d,design.mat)
+d2 <- estimateGLMTrendedDisp(d2,design.mat)
+# You can change method to "auto", "bin.spline", "power", "spline", "bin.loess".
+# The default is "auto" which chooses "bin.spline" when > 200 tags and "power" otherwise.
+d2 <- estimateGLMTagwiseDisp(d2,design.mat)
+plotBCV(d2)
+```
+```{r}
+design.mat
+```
+```{r}
+fit <- glmFit(d2, design.mat)
+
+# this is equivalent to comparing ctrl group to H_6h group
+lrt15 <- glmLRT(fit, contrast = c(1, 0, 0, 0, -1, 0, 0))
+
+topTags(lrt15, n = 10)
+```
+```{r}
+de2 <- decideTestsDGE(lrt15, adjust.method = "BH", p.value = 0.01)
+de2tags15 <- rownames(d2)[as.logical(de2)]
+plotSmear(lrt15, de.tags= de2tags15)
+abline(h = c(-2, 2), col = "blue")
 ```
 
