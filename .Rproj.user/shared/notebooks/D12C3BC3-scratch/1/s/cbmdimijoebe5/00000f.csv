@@ -1,0 +1,4 @@
+"0","# HD6h vs. ctrl"
+"0","volcanoData <- cbind(et$table$logFC, -log10(et$table$PValue))"
+"0","colnames(volcanoData) <- c(""log(FC)"", ""-log10(Pvalue)"")"
+"0","plot(volcanoData, pch=20)"

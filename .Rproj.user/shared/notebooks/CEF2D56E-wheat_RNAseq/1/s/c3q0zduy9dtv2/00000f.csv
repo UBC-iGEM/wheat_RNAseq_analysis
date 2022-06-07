@@ -1,0 +1,2 @@
+"0","# heatmap w/ dendogram to see correlations b/w samples"
+"0","pheatmap(samp_cor)"

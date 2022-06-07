@@ -1,0 +1,7 @@
+"0","# up-regulated and down-regulated gene expression in HD_6h group compared to ctrl"
+"0","sigReg <- HD6h_vs_ctrl$table[HD6h_vs_ctrl$table$FDR<0.01,]"
+"0","sigUpReg <- filter(sigReg, logFC < -1)"
+"0","sigDownReg <- filter(sigReg, logFC > 1)"
+"0","sigUpReg <- sigUpReg[order(sigUpReg$logFC),]"
+"0","sigDownReg <- sigDownReg[order(sigDownReg$logFC, decreasing=TRUE), ]"
+"0","print(sigUpReg)"
