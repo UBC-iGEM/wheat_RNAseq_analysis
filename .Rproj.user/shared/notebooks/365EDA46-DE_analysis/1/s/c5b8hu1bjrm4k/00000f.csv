@@ -1,4 +1,0 @@
-"0","eff.lib.size <- d$samples$lib.size*d$samples$norm.factors"
-"0","normCounts <- cpm(d)"
-"0","pseudoNormCounts <- log2(normCounts + 1)"
-"0","boxplot(pseudoNormCounts, las=3)"

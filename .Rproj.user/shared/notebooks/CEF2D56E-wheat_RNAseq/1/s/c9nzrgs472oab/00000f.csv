@@ -1,3 +1,0 @@
-"0","# index column holds gene IDs"
-"0","rownames(data) <- data$gene"
-"0","data <- subset(data, select = -c(gene))"

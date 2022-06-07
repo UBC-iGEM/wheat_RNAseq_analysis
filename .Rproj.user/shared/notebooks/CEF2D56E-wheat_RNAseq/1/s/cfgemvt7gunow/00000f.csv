@@ -1,3 +1,0 @@
-"0","scores <- as.data.frame(pca$x)"
-"0","scores <- scores[c(1:10)]"
-"0","head(scores)"
