@@ -1,4 +1,0 @@
-"0","et <- exactTest(d, pair=c(""HD_6h"",""ctrl""))"
-"0","# just looking at the top 100 hits for now"
-"0","HD6h_vs_ctrl <- topTags(et, n=100)"
-"0","save(HD6h_vs_ctrl, file='HD6h_ctrl_100.RData')"

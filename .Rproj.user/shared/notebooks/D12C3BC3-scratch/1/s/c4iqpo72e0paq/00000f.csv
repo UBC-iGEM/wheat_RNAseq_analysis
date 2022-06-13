@@ -1,2 +1,0 @@
-"0","detags <- rownames(d)[as.logical(de)] "
-"0","plotSmear(et, de.tags=detags)"
