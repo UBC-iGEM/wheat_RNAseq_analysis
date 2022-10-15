@@ -11,7 +11,8 @@ output:
 4. Normalize
 5. Estimate Dispersions
 6. Differential Expression
-7. GO and Plant Reactome Enrichment
+7. GO (Gene Ontology) and Plant Reactome Analysis
+8. Gene Set Enrichment Analysis (GSEA)
 
 ```{r, results='hide', message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -19,6 +20,7 @@ library(edgeR)
 library(limma)
 library(dplyr)
 library(biomaRt)
+library(goseq)
 
 x <- read.delim("../data/SRP045409_count.tsv.gz", row.names="gene")
 x <- x %>% rename(HD_6h_1=SRR1542417, HD_6h_2=SRR1542416, HD_1h_1=SRR1542415, HD_1h_2=SRR1542414, H_6h_1=SRR1542413, H_6h_2=SRR1542412, H_1h_1=SRR1542411, H_1h_2=SRR1542410, D_6h_1=SRR1542409, D_6h_2=SRR1542408, D_1h_1=SRR1542407, D_1h_2=SRR1542406, ctrl_1=SRR1542405, ctrl_2=SRR1542404)
@@ -38,11 +40,15 @@ d <- DGEList(counts=x,
                c("HD_6h", "HD_6h", "HD_1h", "HD_1h", "H_6h", "H_6h", "H_1h", "H_1h", "D_6h", "D_6h", "D_1h", "D_1h", "ctrl", "ctrl")))
 d
 ```
+
 ```{r}
 keep <- filterByExpr(d)
 d <- d[keep, , keep.lib.sizes=FALSE]
 d <- calcNormFactors(d)
 d
+```
+```{r}
+barplot(d$samples$lib.size * 1e-6, names=1:14, ylab="Library Size (millions)")
 ```
 ```{r, results='hide', message=FALSE, warning=FALSE}
 d <- estimateDisp(d)
@@ -66,19 +72,17 @@ et_HD6H_ctrl$table$padj <- p.adjust(et_HD6H_ctrl$table$PValue, method="BH")
 de <- decideTestsDGE(et_HD6H_ctrl, adjust.method="BH", p.value=0.001)
 summary(de)
 ```
-
-
 ```{r}
 detags <- rownames(d)[as.logical(de)] 
 plotSmear(et_HD6H_ctrl, de.tags=detags)
-abline(h = c(-2, 2), col = "blue")
+abline(h = c(-5, 5), col = "blue")
 ```
 ```{r}
 # up-regulated and down-regulated gene expression in HD_6h group compared to ctrl
-sigReg <- et_HD6H_ctrl$table[et_HD6H_ctrl$table$padj<0.001,]
+sigReg <- et_HD6H_ctrl$table[et_HD6H_ctrl$table$padj<0.001, ]
 sigDownReg <- filter(sigReg, logFC < -5)
 sigUpReg <- filter(sigReg, logFC > 5)
-sigUpReg <- sigUpReg[order(sigUpReg$logFC,decreasing=TRUE), ]
+sigUpReg <- sigUpReg[order(sigUpReg$logFC, decreasing=TRUE), ]
 sigDownReg <- sigDownReg[order(sigDownReg$logFC), ]
 ```
 
@@ -97,7 +101,7 @@ plotMDS(pseudoNormCounts)
 volcanoData <- cbind(et_HD6H_ctrl$table$logFC, -log10(et_HD6H_ctrl$table$padj))
 colnames(volcanoData) <- c("log2(FC)", "-log10(adjusted p-value)")
 plot(volcanoData, cex=0.5)
-abline(v=c(-2, 2), col="blue", lwd=3, lty=2)
+abline(v=c(-5, 5), col="blue", lwd=3, lty=2)
 abline(h=-log10(0.001), col="red", lwd=3, lty=2)
 write.csv(et_HD6H_ctrl$table,"../data/HD6H_ctrl.csv", row.names = TRUE)
 ```
@@ -246,7 +250,7 @@ downRegCellCompCounts$name_1006 = with(downRegCellCompCounts, reorder(name_1006,
 
 top10downRegCellComp <- downRegCellCompCounts %>%
 ggplot(aes(x=name_1006, y=n, fill=name_1006, alpha=0.5)) + 
-  geom_bar(stat = "identity", width=0.4) + coord_flip() +  labs(title = "Top 10 Cellular Componnet GO Terms", y = "# of Downregulated Genes in HD6h Wheat", x = "") + theme(legend.position="none", plot.title=element_text(hjust=0.5))
+  geom_bar(stat = "identity", width=0.4) + coord_flip() +  labs(title = "Top 10 Cellular Component GO Terms", y = "# of Downregulated Genes in HD6h Wheat", x = "") + theme(legend.position="none", plot.title=element_text(hjust=0.5))
 
 top10downRegCellComp
 ```
